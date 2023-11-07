@@ -16,6 +16,7 @@ declare(strict_types=1);
  */
 namespace Cake\Validation;
 
+use BackedEnum;
 use Cake\Chronos\ChronosDate;
 use Cake\Core\Exception\CakeException;
 use Cake\I18n\DateTime;
@@ -25,6 +26,8 @@ use DateTimeInterface;
 use InvalidArgumentException;
 use NumberFormatter;
 use Psr\Http\Message\UploadedFileInterface;
+use ReflectionEnum;
+use ReflectionException;
 use RuntimeException;
 use UnhandledMatchError;
 
@@ -782,6 +785,43 @@ class Validation
     }
 
     /**
+     * Checks that the value is a valid backed enum instance or value.
+     *
+     * @param mixed $check Value to check
+     * @param class-string<\BackedEnum> $enumClassName The valid backed enum class name
+     * @return bool Success
+     * @since 5.0.3
+     */
+    public static function enum(mixed $check, string $enumClassName): bool
+    {
+        if (
+            $check instanceof $enumClassName &&
+            $check instanceof BackedEnum
+        ) {
+            return true;
+        }
+
+        $backingType = null;
+        try {
+            $reflectionEnum = new ReflectionEnum($enumClassName);
+            $backingType = $reflectionEnum->getBackingType();
+        } catch (ReflectionException) {
+        }
+
+        if ($backingType === null) {
+            throw new InvalidArgumentException(
+                'The `$enumClassName` argument must be the classname of a valid backed enum.'
+            );
+        }
+
+        if (get_debug_type($check) !== (string)$backingType) {
+            return false;
+        }
+
+        return $enumClassName::tryFrom($check) !== null;
+    }
+
+    /**
      * Checks that value is exactly $comparedTo.
      *
      * @param mixed $check Value to check
@@ -1371,9 +1411,12 @@ class Validation
             return false;
         }
 
-        [$width, $height] = getimagesize($file) ?: [];
-        $validHeight = null;
-        $validWidth = null;
+        $width = $height = null;
+        $imageSize = getimagesize($file);
+        if ($imageSize) {
+            [$width, $height] = $imageSize;
+        }
+        $validWidth = $validHeight = null;
 
         if (isset($options['height'])) {
             $validHeight = self::comparison($height, $options['height'][0], $options['height'][1]);

@@ -17,6 +17,7 @@ declare(strict_types=1);
 namespace Cake\Test\TestCase\View\Helper;
 
 use ArrayObject;
+use Cake\Chronos\ChronosTime;
 use Cake\Collection\Collection;
 use Cake\Core\Configure;
 use Cake\Core\Exception\CakeException;
@@ -40,6 +41,7 @@ use ReflectionProperty;
 use TestApp\Model\Entity\Article;
 use TestApp\Model\Enum\ArticleStatus;
 use TestApp\Model\Enum\ArticleStatusLabel;
+use TestApp\Model\Enum\ArticleStatusLabelInterface;
 use TestApp\Model\Table\ContactsTable;
 use TestApp\Model\Table\ValidateUsersTable;
 use TestApp\View\Form\StubContext;
@@ -3670,6 +3672,31 @@ class FormHelperTest extends TestCase
             '/div',
         ];
         $this->assertHtml($expected, $result);
+
+        $articlesTable->getSchema()->setColumnType(
+            'published',
+            EnumType::from(ArticleStatusLabelInterface::class)
+        );
+
+        $article = $articlesTable->newEmptyEntity();
+        $this->Form->create($article);
+        $result = $this->Form->control('published');
+        $expected = [
+            'div' => ['class' => 'input select'],
+            'label' => ['for' => 'published'],
+            'Published',
+            '/label',
+            'select' => ['name' => 'published', 'id' => 'published'],
+            ['option' => ['value' => 'Y']],
+            'Is published',
+            '/option',
+            ['option' => ['value' => 'N', 'selected' => 'selected']],
+            'Is unpublished',
+            '/option',
+            '/select',
+            '/div',
+        ];
+        $this->assertHtml($expected, $result);
     }
 
     /**
@@ -5996,6 +6023,20 @@ class FormHelperTest extends TestCase
     {
         $result = $this->Form->time('start_time', [
             'value' => '2014-03-08 16:30:00',
+        ]);
+
+        $expected = [
+            'input' => [
+                'type' => 'time',
+                'name' => 'start_time',
+                'value' => '16:30:00',
+                'step' => '1',
+            ],
+        ];
+        $this->assertHtml($expected, $result);
+
+        $result = $this->Form->time('start_time', [
+            'value' => new ChronosTime('16:30:00'),
         ]);
 
         $expected = [
